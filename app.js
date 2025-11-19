@@ -12,6 +12,9 @@ function updateClock() {
 
     // Update highlight
     highlightCurrentActivity();
+
+    // Update trivia answer visibility
+    updateTriviaAnswer();
 }
 
 // Convert time string (e.g., "7:05 AM") to minutes since midnight
@@ -128,12 +131,55 @@ function fetchJoke() {
     });
 }
 
+// Fetch trivia question
+let triviaAnswer = '';
+
+function fetchTrivia() {
+    fetch('https://opentdb.com/api.php?amount=1&category=9&difficulty=easy')
+    .then(response => response.json())
+    .then(data => {
+        if (data.results && data.results.length > 0) {
+            const question = data.results[0];
+            // Decode HTML entities
+            const parser = new DOMParser();
+            const decodedQuestion = parser.parseFromString(question.question, 'text/html').body.textContent;
+            const decodedAnswer = parser.parseFromString(question.correct_answer, 'text/html').body.textContent;
+
+            document.getElementById('trivia-question').textContent = decodedQuestion;
+            triviaAnswer = decodedAnswer;
+
+            // Check if we should show the answer
+            updateTriviaAnswer();
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching trivia:', error);
+        document.getElementById('trivia-question').textContent = 'Could not load trivia. Try again later!';
+    });
+}
+
+// Update trivia answer visibility based on time
+function updateTriviaAnswer() {
+    const now = new Date(Date.now() + timeOffset);
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const showAnswerTime = 7 * 60 + 20; // 7:20 AM
+
+    const answerElement = document.getElementById('trivia-answer');
+    if (currentMinutes >= showAnswerTime && triviaAnswer) {
+        answerElement.textContent = `Answer: ${triviaAnswer}`;
+        answerElement.style.display = 'block';
+    } else {
+        answerElement.style.display = 'none';
+    }
+}
+
 // Start the clock
 updateClock();
 setInterval(updateClock, 1000);
 
-// Fetch joke on load
+// Fetch joke and trivia on load
 fetchJoke();
+fetchTrivia();
 
 // Fetch and display the morning routine
 fetch('morning-routine.json')
