@@ -1,0 +1,163 @@
+// Time offset tracking
+let timeOffset = 0; // milliseconds to offset from real time
+let routineData = null; // store routine data for highlighting
+
+// Update clock every second
+function updateClock() {
+    const now = new Date(Date.now() + timeOffset);
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
+
+    // Update highlight
+    highlightCurrentActivity();
+}
+
+// Convert time string (e.g., "7:05 AM") to minutes since midnight
+function timeToMinutes(timeStr) {
+    const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!match) return 0;
+
+    let hours = parseInt(match[1]);
+    const minutes = parseInt(match[2]);
+    const period = match[3].toUpperCase();
+
+    if (period === 'PM' && hours !== 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+
+    return hours * 60 + minutes;
+}
+
+// Highlight the current activity based on time
+function highlightCurrentActivity() {
+    if (!routineData) return;
+
+    const now = new Date(Date.now() + timeOffset);
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const items = document.querySelectorAll('#routine-list > div');
+
+    // Find which activity we're currently in
+    let activeIndex = -1;
+    for (let i = 0; i < routineData.morningRoutine.length; i++) {
+        const itemMinutes = timeToMinutes(routineData.morningRoutine[i].time);
+        const nextItemMinutes = i < routineData.morningRoutine.length - 1
+            ? timeToMinutes(routineData.morningRoutine[i + 1].time)
+            : 24 * 60; // End of day
+
+        if (currentMinutes >= itemMinutes && currentMinutes < nextItemMinutes) {
+            activeIndex = i;
+            break;
+        }
+    }
+
+    // Update highlighting and completion status
+    items.forEach((item, index) => {
+        const nextItemMinutes = index < routineData.morningRoutine.length - 1
+            ? timeToMinutes(routineData.morningRoutine[index + 1].time)
+            : 24 * 60;
+
+        const isPast = currentMinutes >= nextItemMinutes;
+        const isCurrent = index === activeIndex;
+
+        const paragraph = item.querySelector('p');
+
+        // Remove all state classes
+        item.classList.remove('current', 'completed', 'future');
+
+        if (isCurrent) {
+            // Current activity - highlight
+            item.classList.add('current');
+
+            // Remove checkmark if present
+            if (paragraph && paragraph.textContent.includes('✓')) {
+                paragraph.innerHTML = paragraph.innerHTML.replace('✓ ', '');
+            }
+        } else if (isPast) {
+            // Past activity - grey out and add checkmark
+            item.classList.add('completed');
+
+            // Add checkmark if not already present
+            if (paragraph && !paragraph.textContent.includes('✓')) {
+                paragraph.innerHTML = '✓ ' + paragraph.innerHTML;
+            }
+        } else {
+            // Future activity - normal
+            item.classList.add('future');
+
+            // Remove checkmark if present
+            if (paragraph && paragraph.textContent.includes('✓')) {
+                paragraph.innerHTML = paragraph.innerHTML.replace('✓ ', '');
+            }
+        }
+    });
+}
+
+// Set custom time
+function setCustomTime() {
+    const input = document.getElementById('time-input').value;
+    const match = input.match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
+
+    if (match) {
+        const [, hours, minutes, seconds] = match;
+        const customTime = new Date();
+        customTime.setHours(parseInt(hours), parseInt(minutes), parseInt(seconds), 0);
+
+        const realTime = new Date();
+        timeOffset = customTime - realTime;
+
+        updateClock();
+    }
+}
+
+// Fetch joke of the day
+function fetchJoke() {
+    fetch('https://icanhazdadjoke.com/', {
+        headers: {
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('joke-text').textContent = data.joke;
+    })
+    .catch(error => {
+        console.error('Error fetching joke:', error);
+        document.getElementById('joke-text').textContent = 'Could not load joke. Try again later!';
+    });
+}
+
+// Start the clock
+updateClock();
+setInterval(updateClock, 1000);
+
+// Fetch joke on load
+fetchJoke();
+
+// Fetch and display the morning routine
+fetch('morning-routine.json')
+    .then(response => response.json())
+    .then(data => {
+        routineData = data; // Store for highlighting
+        const routineList = document.getElementById('routine-list');
+
+        data.morningRoutine.forEach(item => {
+            const itemDiv = document.createElement('div');
+            itemDiv.innerHTML = `
+                <p>
+                    <strong>${item.time}</strong>
+                    <span class="icon">${item.icon}</span>
+                    ${item.activity}
+                </p>
+            `;
+            routineList.appendChild(itemDiv);
+        });
+
+        // Initial highlight
+        highlightCurrentActivity();
+    })
+    .catch(error => {
+        console.error('Error loading routine:', error);
+        document.getElementById('routine-list').innerHTML = '<p>Error loading routine</p>';
+    });
