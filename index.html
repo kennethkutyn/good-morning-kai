@@ -11,7 +11,8 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <video id="keep-awake-video" playsinline muted loop style="position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none;"></video>
+    <video id="keep-awake-video" playsinline muted loop autoplay style="position: fixed; top: 10px; left: 10px; width: 100px; height: 100px; border: 2px solid red; z-index: 9999; background: black;"></video>
+    <div id="wake-status" style="position: fixed; top: 120px; left: 10px; background: white; padding: 10px; border: 1px solid black; z-index: 9999; font-size: 12px;"></div>
 
     <div id="main-container">
         <div id="left-column">

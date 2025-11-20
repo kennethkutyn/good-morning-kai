@@ -208,31 +208,102 @@ fetch('morning-routine.json')
         document.getElementById('routine-list').innerHTML = '<p>Error loading routine</p>';
     });
 
-// Keep screen awake on iPad by playing an invisible silent video
-function initKeepAwake() {
+// Keep screen awake on iPad
+let wakeLock = null;
+const statusDiv = document.getElementById('wake-status');
+
+function updateStatus(message) {
+    console.log(message);
+    if (statusDiv) {
+        statusDiv.innerHTML += message + '<br>';
+    }
+}
+
+async function initKeepAwake() {
     const video = document.getElementById('keep-awake-video');
+
+    updateStatus('Initializing keep-awake...');
+
+    // Try Wake Lock API first (most reliable for modern browsers)
+    if ('wakeLock' in navigator) {
+        try {
+            wakeLock = await navigator.wakeLock.request('screen');
+            updateStatus('✓ Wake Lock API active');
+
+            wakeLock.addEventListener('release', () => {
+                updateStatus('Wake Lock released');
+            });
+
+            // Re-acquire wake lock when page becomes visible
+            document.addEventListener('visibilitychange', async () => {
+                if (wakeLock !== null && document.visibilityState === 'visible') {
+                    try {
+                        wakeLock = await navigator.wakeLock.request('screen');
+                        updateStatus('✓ Wake Lock re-acquired');
+                    } catch (err) {
+                        updateStatus('✗ Wake Lock re-acquire failed: ' + err.message);
+                    }
+                }
+            });
+        } catch (err) {
+            updateStatus('✗ Wake Lock API failed: ' + err.message);
+        }
+    } else {
+        updateStatus('✗ Wake Lock API not supported');
+    }
+
+    // Also try video approach as backup
+    updateStatus('Trying video approach...');
 
     // Create a silent video using canvas
     const canvas = document.createElement('canvas');
-    canvas.width = 1;
-    canvas.height = 1;
+    canvas.width = 100;
+    canvas.height = 100;
 
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = 'black';
-    ctx.fillRect(0, 0, 1, 1);
+
+    // Draw something that changes to keep it "active"
+    let frame = 0;
+    function drawFrame() {
+        ctx.fillStyle = frame % 2 === 0 ? 'black' : '#010101';
+        ctx.fillRect(0, 0, 100, 100);
+        frame++;
+        requestAnimationFrame(drawFrame);
+    }
+    drawFrame();
 
     // Create a video stream from the canvas
-    const stream = canvas.captureStream(1); // 1 fps is enough
+    const stream = canvas.captureStream(25);
     video.srcObject = stream;
 
     // Try to play the video
-    video.play().catch(err => {
-        console.log('Could not autoplay video:', err);
+    try {
+        await video.play();
+        updateStatus('✓ Video is playing');
+        updateStatus('Video paused: ' + video.paused);
+        updateStatus('Video muted: ' + video.muted);
+    } catch (err) {
+        updateStatus('✗ Video autoplay failed: ' + err.message);
+        updateStatus('Touch screen to enable video');
+
         // If autoplay fails, try again on user interaction
-        document.addEventListener('touchstart', () => {
-            video.play().catch(e => console.log('Still could not play:', e));
+        document.addEventListener('touchstart', async () => {
+            try {
+                await video.play();
+                updateStatus('✓ Video playing after touch');
+            } catch (e) {
+                updateStatus('✗ Still could not play: ' + e.message);
+            }
         }, { once: true });
-    });
+    }
+
+    // Monitor video status
+    setInterval(() => {
+        if (video.paused) {
+            updateStatus('⚠ Video paused, trying to resume...');
+            video.play().catch(e => updateStatus('✗ Resume failed: ' + e.message));
+        }
+    }, 5000);
 }
 
 // Initialize keep awake functionality
