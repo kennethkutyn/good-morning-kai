@@ -207,3 +207,33 @@ fetch('morning-routine.json')
         console.error('Error loading routine:', error);
         document.getElementById('routine-list').innerHTML = '<p>Error loading routine</p>';
     });
+
+// Keep screen awake on iPad by playing an invisible silent video
+function initKeepAwake() {
+    const video = document.getElementById('keep-awake-video');
+
+    // Create a silent video using canvas
+    const canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 1;
+
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = 'black';
+    ctx.fillRect(0, 0, 1, 1);
+
+    // Create a video stream from the canvas
+    const stream = canvas.captureStream(1); // 1 fps is enough
+    video.srcObject = stream;
+
+    // Try to play the video
+    video.play().catch(err => {
+        console.log('Could not autoplay video:', err);
+        // If autoplay fails, try again on user interaction
+        document.addEventListener('touchstart', () => {
+            video.play().catch(e => console.log('Still could not play:', e));
+        }, { once: true });
+    });
+}
+
+// Initialize keep awake functionality
+initKeepAwake();
