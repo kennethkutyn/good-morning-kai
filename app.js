@@ -290,17 +290,18 @@ function startDrag(e) {
     const item = handle.closest('#routine-list > div');
     if (!item) return;
 
-    dragState = { item, handle, pointerId: e.pointerId };
+    dragState = { item, pointerId: e.pointerId };
     item.classList.add('dragging');
-    handle.setPointerCapture(e.pointerId);
 
-    handle.addEventListener('pointermove', onDrag);
-    handle.addEventListener('pointerup', endDrag);
-    handle.addEventListener('pointercancel', endDrag);
+    window.addEventListener('pointermove', onDrag);
+    window.addEventListener('pointerup', endDrag);
+    window.addEventListener('pointercancel', endDrag);
 }
 
 function onDrag(e) {
     if (!dragState) return;
+    if (e.pointerId !== dragState.pointerId) return;
+
     const list = document.getElementById('routine-list');
     const draggedItem = dragState.item;
     const others = [...list.querySelectorAll('.edit-item')].filter(i => i !== draggedItem);
@@ -319,14 +320,13 @@ function onDrag(e) {
     }
 }
 
-function endDrag() {
+function endDrag(e) {
     if (!dragState) return;
-    const { item, handle, pointerId } = dragState;
-    item.classList.remove('dragging');
-    try { handle.releasePointerCapture(pointerId); } catch (err) {}
-    handle.removeEventListener('pointermove', onDrag);
-    handle.removeEventListener('pointerup', endDrag);
-    handle.removeEventListener('pointercancel', endDrag);
+    if (e && e.pointerId !== undefined && e.pointerId !== dragState.pointerId) return;
+    dragState.item.classList.remove('dragging');
+    window.removeEventListener('pointermove', onDrag);
+    window.removeEventListener('pointerup', endDrag);
+    window.removeEventListener('pointercancel', endDrag);
     dragState = null;
 }
 
