@@ -14,6 +14,13 @@
     <video id="keep-awake-video" playsinline muted loop autoplay style="position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none;"></video>
     <div id="wake-status" style="display: none;"></div>
 
+    <div id="edit-controls">
+        <button id="edit-btn" onclick="toggleEditMode()" title="Edit routine">✏️</button>
+        <button id="save-btn" onclick="saveEdits()" style="display:none">Save</button>
+        <button id="cancel-btn" onclick="cancelEdits()" style="display:none">Cancel</button>
+        <button id="reset-btn" onclick="resetRoutine()" style="display:none" title="Reset to default">Reset</button>
+    </div>
+
     <div id="main-container">
         <div id="left-column">
             <div id="routine-list"></div>
